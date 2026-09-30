@@ -37,7 +37,6 @@
         }
 
         body {
-            /* تعيين خلفية ثابتة وجميلة لجميع الشاشات وتطبيق التعتيم */
             background: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.95)), 
                         url('https://images.unsplash.com/photo-1635805737707-575885ab0820?q=80&w=1000&auto=format&fit=crop') no-repeat center center fixed;
             background-size: cover;
@@ -360,22 +359,28 @@
         <div id="workoutSection" class="section-content">
             <div class="card">
                 <div class="form-group">
-                    <label>اختر تمريناً:</label>
-                    <select id="workoutSelect">
-                        <option value="جرى خفيف|10">جري / كارديو (تقريباً 10 سعرة/دقيقة)</option>
-                        <option value="اسكوات|8">تمرين اسكوات (تقريباً 8 سعرة/دقيقة)</option>
-                        <option value="تمارين ضغط|7">تمرين ضغط Pushups (تقريباً 7 سعرة/دقيقة)</option>
-                        <option value="مشي سريع|5">مشي سريع (تقريباً 5 سعرة/دقيقة)</option>
-                        <option value="نط الحبل|12">نط الحبل (تقريباً 12 سعرة/دقيقة)</option>
+                    <label>اختر تمريناً جاهزاً أو أضف يدوياً:</label>
+                    <select id="workoutPresetSelect" onchange="fillWorkoutData()">
+                        <option value="">-- اختر تمريناً مخصصاً --</option>
+                        <option value="150 عدة سكوات|55">150 عدة سكوات - 55 سعرة</option>
+                        <option value="جري خفيف (15 دقيقة)|150">جري خفيف (15 دقيقة) - 150 سعرة</option>
+                        <option value="تمارين ضغط|70">تمارين ضغط - 70 سعرة</option>
+                        <option value="مشي سريع (20 دقيقة)|100">مشي سريع (20 دقيقة) - 100 سعرة</option>
+                        <option value="نط الحبل (10 دقائق)|120">نط الحبل (10 دقائق) - 120 سعرة</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label>المدة (بالدقائق):</label>
-                    <input type="number" id="workoutMinutes" placeholder="مثال: 20 دقيقة" value="15">
+                    <label>اسم التمرين:</label>
+                    <input type="text" id="workoutName" placeholder="مثال: 150 عدة سكوات، تمارين بطن...">
                 </div>
 
-                <button class="btn-main" style="background: linear-gradient(135deg, #f43f5e, #be123c); box-shadow: 0 0 15px rgba(244, 63, 94, 0.4);" onclick="addWorkout()"><i class="fa-solid fa-fire-flame-curved"></i> تسجيل التمرين وحساب الحرق</button>
+                <div class="form-group">
+                    <label>السعرات المحروقة:</label>
+                    <input type="number" id="workoutCalories" placeholder="مثال: 55">
+                </div>
+
+                <button class="btn-main" style="background: linear-gradient(135deg, #f43f5e, #be123c); box-shadow: 0 0 15px rgba(244, 63, 94, 0.4);" onclick="addWorkout()"><i class="fa-solid fa-fire-flame-curved"></i> تسجيل السعرات المحروقة</button>
 
                 <div class="list-container" id="workoutList"></div>
             </div>
@@ -383,7 +388,7 @@
 
         <!-- زر مشاركة الشاشة -->
         <div class="share-btn-container">
-            <button class="share-btn" onclick="shareScreen()"><i class="fa-solid fa-camera-retro"></i> التقاط ومشاركة ملخص اليوم</button>
+            <button class="share-btn" onclick="screenShare()"><i class="fa-solid fa-camera-retro"></i> التقاط ومشاركة ملخص اليوم</button>
         </div>
     </div>
 
@@ -458,6 +463,14 @@
             document.getElementById('foodCalories').value = parts[1];
         }
 
+        function fillWorkoutData() {
+            const select = document.getElementById('workoutPresetSelect');
+            if(!select.value) return;
+            const parts = select.value.split('|');
+            document.getElementById('workoutName').value = parts[0];
+            document.getElementById('workoutCalories').value = parts[1];
+        }
+
         function syncToFirebase() {
             const currentData = { foods, workouts, goal: dailyGoal };
             fetch(`${FIREBASE_URL}/current_day/${todayKey}.json`, {
@@ -494,21 +507,21 @@
         }
 
         function addWorkout() {
-            const select = document.getElementById('workoutSelect');
-            const selectedOption = select.options[select.selectedIndex].text.split('(')[0].trim();
-            const ratePerMin = parseInt(select.value);
-            const minutes = parseInt(document.getElementById('workoutMinutes').value);
+            const name = document.getElementById('workoutName').value.trim();
+            const burnedCalories = parseInt(document.getElementById('workoutCalories').value);
 
-            if(isNaN(minutes) || minutes <= 0) {
-                alert('من فضلك ادخل عدد الدقائق بشكل صحيح.');
+            if(!name || isNaN(burnedCalories) || burnedCalories <= 0) {
+                alert('من فضلك ادخل اسم التمرين والسعرات المحروقة بشكل صحيح.');
                 return;
             }
 
-            const burnedCalories = ratePerMin * minutes;
-            workouts.push({ id: Date.now(), name: selectedOption, minutes, burnedCalories });
+            workouts.push({ id: Date.now(), name, burnedCalories });
             localStorage.setItem('ahmed_workouts', JSON.stringify(workouts));
             syncToFirebase();
 
+            document.getElementById('workoutName').value = '';
+            document.getElementById('workoutCalories').value = '';
+            document.getElementById('workoutPresetSelect').value = '';
             updateUI();
         }
 
@@ -548,7 +561,7 @@
             workouts.slice().reverse().forEach(item => {
                 workoutListEl.innerHTML += `
                     <div class="list-item">
-                        <span><strong>${item.name}</strong> (${item.minutes} دقيقة - حرق ${item.burnedCalories} سعرة)</span>
+                        <span><strong>${item.name}</strong> (${item.burnedCalories} سعرة)</span>
                         <button class="delete-btn" onclick="deleteWorkout(${item.id})"><i class="fa-solid fa-trash-can"></i></button>
                     </div>
                 `;
